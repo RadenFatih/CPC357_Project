@@ -1,0 +1,9 @@
+Flask
+Flask-Login
+firebase-admin
+opencv-python
+gpiozero
+adafruit-circuitpython-dht
+adafruit-blinka
+spidev
+rpi.gpio
