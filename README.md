@@ -1,6 +1,6 @@
 # Nexus Safety System - IoT Fire and Gas (LPG) Hazard Monitoring
 
-## 📖 Project Description
+## Project Description
 The **Nexus Safety System** is an advanced IoT-based environmental monitoring solution designed to detect fire and gas hazards in real-time. Built on a Raspberry Pi, it integrates multi-sensor data fusion with computer vision to provide immediate alerts and automated hazard mitigation.
 
 The system features a futuristic "City Command" web dashboard for real-time surveillance, historical data analysis, and manual control of safety actuators.
@@ -18,7 +18,7 @@ The system features a futuristic "City Command" web dashboard for real-time surv
 
 ---
 
-## 🛠️ Hardware Requirements
+## Hardware Requirements
 * **Controller:** Raspberry Pi 3B+ or above
 * **Visual Sensor:** Logitech C270 Webcam (or compatible USB camera)
 * **Sensors:**
@@ -33,7 +33,7 @@ The system features a futuristic "City Command" web dashboard for real-time surv
 
 ---
 
-## 🔌 Wiring Configuration
+## Wiring Configuration
 | Device | Raspberry Pi GPIO / Pin |
 | :--- | :--- |
 | **Flame Sensor (DO)** | GPIO 16 |
@@ -53,11 +53,11 @@ The system features a futuristic "City Command" web dashboard for real-time surv
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### 1. Clone the Repository
 Open your terminal on the Raspberry Pi and clone this repository:
-```bash
+
 git clone [https://github.com/YOUR_USERNAME/nexus-safety-system.git](https://github.com/YOUR_USERNAME/nexus-safety-system.git)
 cd nexus-safety-system
 
