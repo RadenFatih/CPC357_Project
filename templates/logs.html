@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus: Hazard Logs</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: { 900: '#0B1121', 800: '#151E32', 700: '#2A3441' },
+                        neon: { blue: '#00F0FF', teal: '#00D1A0', purple: '#BD00FF', red: '#FF2E2E' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['Rajdhani', 'monospace'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0B1121;
+            background-image: radial-gradient(circle at 50% 0%, #1a233a 0%, #0B1121 70%);
+            color: #e2e8f0;
+        }
+        .glass-panel {
+            background: rgba(21, 30, 50, 0.7); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 text-sm md:text-base flex flex-col">
+
+    <header class="max-w-[1800px] mx-auto w-full mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded bg-gradient-to-br from-neon-blue to-blue-900 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            </div>
+            <div>
+                <h1 class="font-mono text-2xl font-bold tracking-wider uppercase text-white">Nexus <span class="text-neon-blue">Command</span></h1>
+                
+                <div class="flex items-center gap-6 text-sm font-mono tracking-widest mt-1">
+                    <a href="/" class="text-gray-400 hover:text-white transition pb-1">DASHBOARD</a>
+                    <a href="/logs" class="text-neon-blue border-b-2 border-neon-blue pb-1">HAZARD LOGS</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-6 glass-panel px-6 py-2 rounded-full">
+            <div class="flex items-center gap-3 text-xs text-gray-400 font-mono tracking-widest mr-4 border-r border-gray-600 pr-4">
+                <span class="text-white">{{ user.email }}</span>
+                <a href="/logout" class="text-red-400 hover:text-red-300">LOGOUT</a>
+            </div>
+            <div class="text-right">
+                <div id="currentTime" class="font-mono text-xl font-bold text-white tracking-widest">--:--:--</div>
+                <div id="currentDate" class="text-xs text-neon-teal uppercase tracking-wider">INITIALIZING...</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1800px] mx-auto w-full">
+        <div class="glass-panel rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4 border-b border-dark-700 pb-2">
+                <h3 class="font-mono text-red-500 text-lg tracking-wider">CRITICAL HAZARD HISTORY</h3>
+                <span class="text-xs text-gray-500">Last 15 Incidents (Filtered by Danger Status)</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-400">
+                    <thead class="text-xs uppercase bg-dark-900/50 text-gray-300 font-mono">
+                        <tr>
+                            <th class="px-4 py-3 rounded-l-lg">Timestamp</th>
+                            <th class="px-4 py-3">Alert Type</th>
+                            <th class="px-4 py-3">Temperature</th>
+                            <th class="px-4 py-3">Humidity</th>
+                            <th class="px-4 py-3 rounded-r-lg">Gas Level (Analog)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alert-table-body" class="font-mono">
+                        <tr><td colspan="5" class="px-4 py-3 text-center text-gray-600">Loading history data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 1. CLOCK ---
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('currentDate').innerText = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // --- 2. FETCH LOGS ---
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/alert_history');
+                const alerts = await response.json();
+                const tbody = document.getElementById('alert-table-body');
+                
+                if (alerts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-3 text-center text-gray-600">No hazard events found in database.</td></tr>';
+                } else {
+                    tbody.innerHTML = '';
+                    alerts.forEach(alert => {
+                        let typeStyle = 'text-gray-400';
+                        if (alert.type.includes('FIRE')) typeStyle = 'text-red-500 font-bold';
+                        else if (alert.type.includes('GAS')) typeStyle = 'text-neon-purple font-bold';
+                        else if (alert.type.includes('HAZARD')) typeStyle = 'text-orange-500 font-bold';
+
+                        const row = `
+                            <tr class="border-b border-dark-700 hover:bg-white/5 transition">
+                                <td class="px-4 py-3 text-white">${alert.time}</td>
+                                <td class="px-4 py-3 ${typeStyle}">${alert.type}</td>
+                                <td class="px-4 py-3">${alert.temp}°C</td>
+                                <td class="px-4 py-3">${alert.humidity}%</td>
+                                <td class="px-4 py-3">${alert.gas}</td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                }
+            } catch (e) { console.error("Failed to fetch logs:", e); }
+        }
+
+        // Fetch logs on load and every 5 seconds
+        fetchLogs();
+        setInterval(fetchLogs, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus: City Command Node</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: { 900: '#0B1121', 800: '#151E32', 700: '#2A3441' },
+                        neon: { blue: '#00F0FF', teal: '#00D1A0', purple: '#BD00FF', red: '#FF2E2E' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['Rajdhani', 'monospace'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0B1121;
+            background-image: radial-gradient(circle at 50% 0%, #1a233a 0%, #0B1121 70%);
+            color: #e2e8f0;
+        }
+        .glass-panel {
+            background: rgba(21, 30, 50, 0.7); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+        .text-glow-blue { text-shadow: 0 0 10px rgba(0, 240, 255, 0.5); }
+        .text-glow-red { text-shadow: 0 0 10px rgba(255, 46, 46, 0.6); }
+        
+        .hud-corner { position: absolute; width: 20px; height: 20px; border-color: #00F0FF; border-style: solid; transition: all 0.3s ease; }
+        .hud-tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+        .hud-tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
+        .hud-bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
+        .hud-br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+
+        .circular-chart { display: block; margin: 0 auto; max-width: 100%; max-height: 250px; }
+        .circle-bg { fill: none; stroke: #1e293b; stroke-width: 2.5; }
+        .circle { fill: none; stroke-width: 2.5; stroke-linecap: round; transition: stroke-dasharray 0.5s ease; }
+        .percentage { fill: #fff; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 7px; text-anchor: middle; dominant-baseline: middle; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 text-sm md:text-base flex flex-col">
+
+    {% if login_mode %}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-dark-900 bg-opacity-95">
+        <div class="glass-panel p-8 rounded-xl max-w-md w-full relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon-blue to-neon-purple"></div>
+            <div class="text-center mb-8">
+                <h1 class="font-mono text-3xl font-bold text-white tracking-wider mb-2">ACCESS <span class="text-neon-blue">CONTROL</span></h1>
+            </div>
+            
+            <form action="/login" method="POST" class="space-y-6">
+                <div>
+                    <label for="email" class="block text-xs font-mono text-neon-teal uppercase mb-2">Authorized Email</label>
+                    <input type="email" name="email" required 
+                           class="w-full bg-dark-800 border border-dark-700 rounded px-4 py-3 text-white focus:outline-none focus:border-neon-blue transition-colors placeholder-gray-600"
+                           placeholder="officer@nexus.com">
+                </div>
+                <button type="submit" 
+                        class="w-full bg-neon-blue/10 border border-neon-blue text-neon-blue font-mono font-bold py-3 rounded hover:bg-neon-blue hover:text-dark-900 transition-all uppercase tracking-widest">
+                    Initialize Session
+                </button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    
+    <header class="max-w-[1800px] mx-auto w-full mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded bg-gradient-to-br from-neon-blue to-blue-900 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            </div>
+            <div>
+                <h1 class="font-mono text-2xl font-bold tracking-wider uppercase text-white">Nexus <span class="text-neon-blue">Command</span></h1>
+                
+                <div class="flex items-center gap-6 text-sm font-mono tracking-widest mt-1">
+                    <a href="/" class="text-neon-blue border-b-2 border-neon-blue pb-1">DASHBOARD</a>
+                    <a href="/logs" class="text-gray-400 hover:text-white transition pb-1">HAZARD LOGS</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-6 glass-panel px-6 py-2 rounded-full">
+            <div class="flex items-center gap-3 text-xs text-gray-400 font-mono tracking-widest mr-4 border-r border-gray-600 pr-4">
+                <span class="text-white">{{ user.email }}</span>
+                <a href="/logout" class="text-red-400 hover:text-red-300">LOGOUT</a>
+            </div>
+            <div class="text-right">
+                <div id="currentTime" class="font-mono text-xl font-bold text-white tracking-widest">--:--:--</div>
+                <div id="currentDate" class="text-xs text-neon-teal uppercase tracking-wider">INITIALIZING...</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1800px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <section class="lg:col-span-2 flex flex-col h-full">
+            <div class="glass-panel rounded-xl p-1 relative group overflow-hidden h-full min-h-[400px]">
+                <div class="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/60 px-2 py-1 rounded border border-red-500/50">
+                    <div class="w-2 h-2 bg-red-500 rounded-full animate-ping"></div>
+                    <span class="text-xs font-mono text-red-400">LIVE FEED</span>
+                </div>
+                
+                <div class="relative bg-black rounded-lg overflow-hidden w-full h-full border border-dark-700">
+                    <div class="hud-corner hud-tl"></div><div class="hud-corner hud-tr"></div>
+                    <div class="hud-corner hud-bl"></div><div class="hud-corner hud-br"></div>
+                    <img src="/video_feed" alt="NO SIGNAL" class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-500">
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-1 space-y-6 flex flex-col">
+            
+            <div class="glass-panel rounded-xl p-6">
+                <h3 class="font-mono text-neon-teal text-lg mb-4 tracking-wider border-b border-dark-700 pb-2">CRITICAL ALERTS</h3>
+                <div class="space-y-3">
+                    <div id="status-fire-card" class="flex items-center justify-between p-3 rounded bg-dark-800 border-l-4 border-green-500">
+                        <span class="text-gray-400 text-xs font-mono uppercase">Flame Sensor</span>
+                        <span id="val-fire" class="font-bold text-green-400 text-glow-blue">CLEAR</span>
+                    </div>
+
+                    <div id="status-gas-card" class="flex items-center justify-between p-3 rounded bg-dark-800 border-l-4 border-green-500">
+                        <span class="text-gray-400 text-xs font-mono uppercase">Gas Status</span>
+                        <span id="val-gas-status" class="font-bold text-green-400 text-glow-blue">CLEAR</span>
+                    </div>
+
+                    <div id="status-buzzer-card" class="flex items-center justify-between p-3 rounded bg-dark-800 border-l-4 border-gray-600">
+                        <span class="text-gray-400 text-xs font-mono uppercase">Alarm Buzzer</span>
+                        <span id="val-buzzer" class="font-bold text-gray-200">SILENT</span>
+                    </div>
+
+                    <div class="flex items-center justify-between p-3 rounded bg-dark-800 border-l-4 border-gray-600">
+                        <span class="text-gray-400 text-xs font-mono uppercase">Pump State</span>
+                        <span id="val-pump" class="font-bold text-gray-200">OFF</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-xl p-6 flex-1">
+                <h3 class="font-mono text-neon-teal text-lg mb-4 tracking-wider border-b border-dark-700 pb-2">CONTROLS</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-4 bg-dark-800 rounded border border-dark-700 hover:border-neon-blue transition-colors">
+                        <div class="flex flex-col">
+                            <span class="text-gray-300 font-medium">Hydraulic Pump</span>
+                            <span class="text-xs text-gray-500 font-mono" id="label-pump">STATUS: AUTO</span>
+                        </div>
+                        <button onclick="toggle('pump')" id="btn-pump" class="relative inline-flex items-center h-8 rounded-full w-14 transition-colors focus:outline-none bg-gray-700">
+                            <span class="sr-only">Toggle Pump</span>
+                            <span class="transform transition ease-in-out duration-200 translate-x-1 inline-block w-6 h-6 transform bg-white rounded-full shadow-lg"></span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-dark-800 rounded border border-dark-700 hover:border-neon-purple transition-colors">
+                        <div class="flex flex-col">
+                            <span class="text-gray-300 font-medium">Alarm System</span>
+                            <span class="text-xs text-gray-500 font-mono" id="label-buzzer">STATUS: STANDBY</span>
+                        </div>
+                        <button onclick="toggle('buzzer')" id="btn-buzzer" class="relative inline-flex items-center h-8 rounded-full w-14 transition-colors focus:outline-none bg-gray-700">
+                            <span class="sr-only">Toggle Buzzer</span>
+                            <span class="transform transition ease-in-out duration-200 translate-x-1 inline-block w-6 h-6 transform bg-white rounded-full shadow-lg"></span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-dark-800 rounded border border-dark-700 hover:border-orange-500 transition-colors">
+                        <div class="flex flex-col">
+                            <span class="text-gray-300 font-medium">Email Alerts</span>
+                            <span class="text-xs text-gray-500 font-mono" id="label-email">
+                                {% if alert_status %} ACTIVE {% else %} DISABLED {% endif %}
+                            </span>
+                        </div>
+                        <button onclick="toggle('email')" id="btn-email" 
+                                class="relative inline-flex items-center h-8 rounded-full w-14 transition-colors focus:outline-none {% if alert_status %} bg-orange-500 {% else %} bg-gray-700 {% endif %}">
+                            <span class="sr-only">Toggle Email</span>
+                            <span class="transform transition ease-in-out duration-200 inline-block w-6 h-6 transform bg-white rounded-full shadow-lg {% if alert_status %} translate-x-7 {% else %} translate-x-1 {% endif %}"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-3">
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel rounded-xl p-6 relative overflow-hidden flex flex-col items-center">
+                    <h4 class="text-orange-500 font-mono text-sm uppercase tracking-widest mb-4 w-full text-left">Temperature</h4>
+                    <div class="w-40 h-40">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="gauge-temp" class="circle" stroke="#f97316" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="18" class="percentage" id="text-temp">0°C</text>
+                        </svg>
+                    </div>
+                </div>
+                <div class="glass-panel rounded-xl p-6 relative overflow-hidden flex flex-col items-center">
+                    <h4 class="text-neon-blue font-mono text-sm uppercase tracking-widest mb-4 w-full text-left">Humidity</h4>
+                    <div class="w-40 h-40">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="gauge-hum" class="circle" stroke="#00F0FF" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="18" class="percentage" id="text-hum">0%</text>
+                        </svg>
+                    </div>
+                </div>
+                <div class="glass-panel rounded-xl p-6 relative overflow-hidden flex flex-col items-center">
+                    <h4 class="text-neon-purple font-mono text-sm uppercase tracking-widest mb-4 w-full text-left">Gas Reading (LPG)</h4>
+                    <div class="w-40 h-40">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="gauge-gas" class="circle" stroke="#BD00FF" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="18" class="percentage" id="val-gas">0</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-3">
+             <div class="glass-panel rounded-xl p-6">
+                <h3 class="font-mono text-white text-lg tracking-wider mb-6">ENVIRONMENTAL ANALYTICS</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <div class="bg-dark-900/50 p-4 rounded-lg border border-dark-700">
+                        <h5 class="text-xs text-orange-500 mb-2 uppercase font-mono font-bold tracking-widest">Temperature</h5>
+                        <div class="h-48 relative">
+                            <canvas id="tempChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-dark-900/50 p-4 rounded-lg border border-dark-700">
+                        <h5 class="text-xs text-neon-blue mb-2 uppercase font-mono font-bold tracking-widest">Humidity</h5>
+                        <div class="h-48 relative">
+                            <canvas id="humChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-dark-900/50 p-4 rounded-lg border border-dark-700">
+                        <h5 class="text-xs text-neon-purple mb-2 uppercase font-mono font-bold tracking-widest">Gas Reading (LPG)</h5>
+                        <div class="h-48 relative">
+                            <canvas id="gasChart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+    {% endif %}
+
+    <script>
+        // --- 1. CLOCK ---
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('currentDate').innerText = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // --- 2. IMPROVED CHART CONFIG ---
+        Chart.defaults.color = '#94a3b8'; // Lighter text for better visibility
+        Chart.defaults.font.family = 'Rajdhani';
+        
+        const commonOptions = { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleColor: '#fff',
+                    bodyColor: '#e2e8f0',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1
+                }
+            }, 
+            scales: { 
+                x: { 
+                    grid: { color: 'rgba(255,255,255,0.1)' }, // More visible grid
+                    ticks: { font: { size: 10 }, color: '#64748b' } 
+                }, 
+                y: { 
+                    grid: { color: 'rgba(255,255,255,0.1)' }, // More visible grid
+                    ticks: { font: { size: 10 }, color: '#64748b' } 
+                } 
+            }, 
+            elements: { 
+                line: { tension: 0.4, borderWidth: 2 }, 
+                point: { radius: 3, hoverRadius: 6, hitRadius: 10 } // POINTS ARE NOW VISIBLE
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        };
+
+        const createChart = (ctx, color, bg) => new Chart(ctx, { 
+            type: 'line', 
+            data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bg, fill: true }] }, 
+            options: commonOptions 
+        });
+        
+        // Only init charts if elements exist (in dashboard mode)
+        let gasChart, tempChart, humChart;
+        if(document.getElementById('gasChart')) {
+            gasChart = createChart(document.getElementById('gasChart'), '#BD00FF', 'rgba(189, 0, 255, 0.1)');
+            tempChart = createChart(document.getElementById('tempChart'), '#f97316', 'rgba(249, 115, 22, 0.1)');
+            humChart = createChart(document.getElementById('humChart'), '#00F0FF', 'rgba(0, 240, 255, 0.1)');
+        }
+
+        // --- 3. CONTROL LOGIC ---
+        let manualState = { pump: false, buzzer: false, email: {{ 'true' if alert_status else 'false' }} };
+
+        function toggle(device) {
+            manualState[device] = !manualState[device];
+            const action = manualState[device] ? 'on' : 'off';
+            
+            const btn = document.getElementById(`btn-${device}`);
+            const label = document.getElementById(`label-${device}`);
+            const dot = btn.querySelector('span');
+            
+            // Visual Update
+            if (manualState[device]) {
+                if(device === 'pump') btn.className = "relative inline-flex items-center h-8 rounded-full w-14 transition-colors focus:outline-none bg-neon-blue";
+                else if(device === 'buzzer') btn.className = "relative inline-flex items-center h-8 rounded-full w-14 transition-colors focus:outline-none bg-neon-purple";
+                else btn.className = "relative inline-flex items-center h-8 rounded-full w-14 transition-colors focus:outline-none bg-orange-500";
+                
+                dot.classList.add('translate-x-7');
+                dot.classList.remove('translate-x-1');
+                label.innerText = device === 'email' ? "ACTIVE" : "STATUS: OVERRIDE ON";
+            } else {
+                btn.className = "relative inline-flex items-center h-8 rounded-full w-14 transition-colors focus:outline-none bg-gray-700";
+                dot.classList.remove('translate-x-7');
+                dot.classList.add('translate-x-1');
+                label.innerText = device === 'email' ? "DISABLED" : "STATUS: AUTO";
+            }
+
+            fetch(`/control/${device}/${action}`, { method: 'POST' });
+        }
+
+        // --- 4. DATA UPDATE ---
+        function updateGauge(id, value, max) {
+            const percent = Math.min((value / max) * 100, 100);
+            document.getElementById(id).setAttribute("stroke-dasharray", `${percent}, 100`);
+        }
+
+        async function updateDashboard() {
+            try {
+                const response = await $.getJSON('/data');
+                
+                $('#text-temp').text(response.temp + "°C");
+                $('#text-hum').text(response.hum + "%");
+                $('#val-gas').text(response.gas);
+                $('#val-pump').text(response.pump_status);
+                
+                updateGauge('gauge-temp', response.temp, 50);
+                updateGauge('gauge-hum', response.hum, 100);
+                updateGauge('gauge-gas', response.gas, 1000);
+
+                const fireCard = document.getElementById('status-fire-card');
+                const fireText = document.getElementById('val-fire');
+                if (response.flame_sensor.includes("FIRE")) {
+                    fireCard.classList.remove('border-green-500'); fireCard.classList.add('border-red-500', 'bg-red-900/20');
+                    fireText.innerText = "DETECTED"; fireText.className = "font-bold text-red-500 text-glow-red animate-pulse";
+                } else {
+                    fireCard.classList.add('border-green-500'); fireCard.classList.remove('border-red-500', 'bg-red-900/20');
+                    fireText.innerText = "CLEAR"; fireText.className = "font-bold text-green-400 text-glow-blue";
+                }
+
+                // Gas Status Logic
+                const gasCard = document.getElementById('status-gas-card');
+                const gasText = document.getElementById('val-gas-status');
+                if (response.mq2_status === "GAS DETECTED") {
+                    gasCard.classList.remove('border-green-500'); gasCard.classList.add('border-neon-purple', 'bg-purple-900/20');
+                    gasText.innerText = "LEAK DETECTED"; gasText.className = "font-bold text-neon-purple text-glow-red animate-pulse";
+                } else {
+                    gasCard.classList.add('border-green-500'); gasCard.classList.remove('border-neon-purple', 'bg-purple-900/20');
+                    gasText.innerText = "CLEAR"; gasText.className = "font-bold text-green-400 text-glow-blue";
+                }
+
+                // Buzzer Status Logic
+                const buzzerCard = document.getElementById('status-buzzer-card');
+                const buzzerText = document.getElementById('val-buzzer');
+                if (response.buzzer_status === "ON") {
+                    buzzerCard.classList.remove('border-gray-600');
+                    buzzerCard.classList.add('border-neon-purple', 'bg-purple-900/20');
+                    buzzerText.innerText = "ACTIVE";
+                    buzzerText.className = "font-bold text-neon-purple text-glow-blue animate-pulse";
+                } else {
+                    buzzerCard.classList.add('border-gray-600');
+                    buzzerCard.classList.remove('border-neon-purple', 'bg-purple-900/20');
+                    buzzerText.innerText = "SILENT";
+                    buzzerText.className = "font-bold text-gray-200";
+                }
+
+                // Update Charts
+                const histRes = await fetch('/history');
+                const hist = await histRes.json();
+                if (hist.length > 0 && gasChart) {
+                    const labels = hist.map(d => new Date(d.time_iso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}));
+                    gasChart.data.labels = labels; gasChart.data.datasets[0].data = hist.map(d => d.gas); gasChart.update('none');
+                    tempChart.data.labels = labels; tempChart.data.datasets[0].data = hist.map(d => d.temp); tempChart.update('none');
+                    humChart.data.labels = labels; humChart.data.datasets[0].data = hist.map(d => d.humidity); humChart.update('none');
+                }
+            } catch (e) { console.log(e); }
+        }
+
+        // Start if not on login page
+        if(!document.querySelector('form')) {
+            setInterval(updateDashboard, 2000);
+            updateDashboard();
+        }
+    </script>
+</body>
+</html>
